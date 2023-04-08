@@ -8,8 +8,8 @@ definitly recommed you go check it out https://github.com/ScrappieG/Albion-disco
 
 any questions feel free to reach out to me at stone#3650
 
-### about
-----------------------------------------------------------------
+# about
+
 This bot was created for an albion online guild server. It allows
 for easier lootsplits and regears. The bot tracks how much the 
 guild owes each member which is super useful if you do things
@@ -17,11 +17,10 @@ like regearing people and the guild buying lootsplits.
 This is still a work in progress and I will be adding more features
 to it. You guys are welcome to use it just gimme some credit thats all
 i ask :D.
-----------------------------------------------------------------
 
-##Bot Utility
+# Bot Commands
 
-###Bot commands
+Bot commands
 
 /register <member>
 
@@ -37,11 +36,12 @@ i ask :D.
 
 /lootsplit <lootsplit total><# of people>
 
-###Apps
+# Bot Apps
 
 View join date
 
 View guild balance
------------------------------------------
 
+
+#API credit
 Albion data project Docs https://www.albion-online-data.com/api/swagger/index.html
