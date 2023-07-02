@@ -6,15 +6,15 @@ import sqlite3
 import crafting
 from sql_queries import add_member, is_member,remove_member,update_guild_balance,find_guild_balance, find_all_balance
 
-TOKEN = 'KEY'
+TOKEN = 'TOKEN'
 REGEAR_CHANNEL = 123 #replace with the channel id you want the regears to be sent to
 LOG_CHANNEL = 123 #replace with your log channel id
 
 
-MY_GUILD = discord.Object(id=123)  # replace with your guild id
+MY_GUILD = discord.Object(id=1234)  # replace with your guild id
 
 
-TAX_RATE = 10 #can be changed whenever needed to but hardcoded seems to be better for everyone
+TAX_RATE = 25 #can be changed whenever needed to but hardcoded seems to be better for everyone
 
 
 class MyClient(discord.Client):
@@ -87,16 +87,21 @@ async def joined(interaction: discord.Interaction, member: Optional[discord.Memb
 
     #allows people to know when another member joined
 
+@client.tree.command()
+async def help(interaction: discord.Interaction):
+    message = (f'work in progess')
+    await interaction.response.send_message(f'{message}')
+
 
 @client.tree.command()
 @app_commands.rename(first_value = 'lootsplit_total',
                     third_value = 'tax',
                     balance = 'add_to_bal'
                      )
-@app_commands.describe(first_value='Total Ammount Of The Loot Split')
-@app_commands.describe(third_value='Default is set to 10%'+' (ex. 15% = 15)')
-@app_commands.describe(balance='Use True if you want to add the loot split value to their balances')
-async def lootsplit(interaction: discord.Interaction, first_value: int, third_value: Optional[int] = None, balance: Optional[bool] = False):
+@app_commands.describe(first_value='Total Amount Of The Loot Split')
+@app_commands.describe(third_value='Default is set to 25%'+' (ex. 15% = 15)')
+@app_commands.describe(balance='Use False if you dont want to add the loot split value to their balances')
+async def lootsplit(interaction: discord.Interaction, first_value: int, third_value: Optional[int] = None, balance: Optional[bool] = True):
     """Creates easy loot splits"""
 
 
@@ -119,18 +124,22 @@ async def lootsplit(interaction: discord.Interaction, first_value: int, third_va
         counter += 1
     players = counter
     Loot_value = round((loot_without_tax) / players)
+    print(counter)
     if balance == True:
         for member in members:
                     conn = sqlite3.connect('bot.db')
                     balance= find_guild_balance(str(member.id),conn)
                     ammount = Loot_value + balance
+                    print(Loot_value)
                     conn = sqlite3.connect('bot.db')
                     update_guild_balance(str(member.id),ammount,conn)
-                    counter += 1
-    #grabs number of members in the vc that the user is in and adds their split of the loot to their silver balance
+                    
+
     
     players = counter
     Loot_value = round((loot_without_tax) / players)
+    print(Loot_value)
+    print(counter)
 
     response.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
     response.timestamp = interaction.created_at
@@ -140,7 +149,7 @@ async def lootsplit(interaction: discord.Interaction, first_value: int, third_va
     log_channel = interaction.guild.get_channel(LOG_CHANNEL)
     await log_channel.send(embed=response)
 
-    #makes the lootsplits a little easier
+    #makes the lootsplits a little easier and the guild tax is hardcoded
 
 
 @client.tree.command()
@@ -171,7 +180,6 @@ async def t5_flat_craft(interaction: discord.Interaction, first_value: str, seco
 
     await interaction.response.send_message(embed=response,ephemeral=True, delete_after=60)
 
-    #This is a work in progress, it just allows you to users to get an estimation for their profit on t5 flat crafting
 
 
 
@@ -226,19 +234,28 @@ async def regear(interaction: discord.Interaction, member: discord.Member, first
     log_channel = interaction.guild.get_channel(REGEAR_CHANNEL)
     await log_channel.send(embed=response)
 
-    #Command allows regears to be faster and saved automatically
 
 @client.tree.command()
 @app_commands.rename(
     first_value='ammount',
+    second_value='reason',
     )
 @app_commands.describe(
     first_value='negative # if subtract positive if add',
+    second_value='Reason for the Update',
+
     )
-async def update_balance(interaction: discord.Interaction, member: discord.Member,  first_value: int):
+async def update_balance(interaction: discord.Interaction, member: discord.Member,  first_value: int, second_value: str):
     """Allow moderator to change a users guild balance directly"""
 
     conn = sqlite3.connect('bot.db')
+
+    green = discord.Color.green()
+    red = discord.Color.red()
+    mod_name = interaction.user.display_name
+    other_name = member.nick
+    if other_name == None:
+        other_name = member.display_name
     
     if is_member(member_id=str(member.id), conn=conn) == True:
         conn = sqlite3.connect('bot.db')
@@ -246,9 +263,14 @@ async def update_balance(interaction: discord.Interaction, member: discord.Membe
         conn = sqlite3.connect('bot.db')
         ammount = current_value + (first_value)
         update_guild_balance(member_id=member.id, ammount=ammount, conn=conn)
-        response = discord.Embed(title = 'Balance is updated')
 
-        response.description = (f'New balance: {ammount:,}')
+        if first_value <= 0:
+            value = first_value * -1
+            response = discord.Embed(title = 'Withdraw', color=red)
+            response.description = (f'{mod_name} Withdrew {value:,} From {other_name} \n ---------- \n Reason: {second_value}\n ---------- \n New balance: {ammount:,} ')
+        else:
+            response = discord.Embed(title = 'Deposit', color=green)
+            response.description = (f'{mod_name} Deposited {first_value:,} To {other_name} \n ---------- \n Reason: {second_value}\n ---------- \n New balance: {ammount:,} ')
     else:
         response = discord.Embed(title = 'Balance could not be Updated D:')
 
@@ -261,7 +283,27 @@ async def update_balance(interaction: discord.Interaction, member: discord.Membe
     log_channel = interaction.guild.get_channel(LOG_CHANNEL)
     await log_channel.send(embed=response)
 
-    #allows moderators to update a members silver balance
+
+@client.tree.command()
+async def guild_balance(interaction: discord.Interaction, member: discord.Member):
+    """view a members guild balance"""
+
+    conn = sqlite3.connect('bot.db')
+
+    member_id = member.id
+
+    balance = find_guild_balance(str(member_id), conn)
+    print(balance)
+
+
+    embed = discord.Embed(title='Guild Silver Balance')
+            
+    embed.description = (f'Total: {balance:,}')
+    embed.set_author(name=member.display_name, icon_url=member.display_avatar.url)
+    embed.timestamp = interaction.created_at
+
+    await interaction.response.send_message(embed=embed, ephemeral=True, delete_after=120)
+    
 
 @client.tree.command()
 async def all_balances(interaction:discord.Interaction):
@@ -272,23 +314,46 @@ async def all_balances(interaction:discord.Interaction):
     print(balance_list)
 
     message = ''
+    sum = 0
+    lended = 0
+    dues = 0
     
-
+    
+    #await interaction.response.defer()
+    #use if it is taking to long to process
     for i in range(len(balance_list)):
         temp = balance_list[i]
         guild_balance = temp[0]
 
-        user = await client.fetch_user(int(temp[1]))
-        name = user.display_name
-        message = (f'{message} \n {name}: ${guild_balance}')
-        
-    response = discord.Embed(title = 'Balances :D')
+        Guild = MY_GUILD
+        guild = interaction.guild
+        member = guild.get_member(int(temp[1]))
 
-    response.description = (f'{message}')
+        name = member.nick
 
-    await interaction.response.send_message(embed=response, ephemeral=True,delete_after=120)
+        if name == None:
+            name = member.display_name
 
-#allows moderators to pull all members silver balances
+        message = (f'{message} \n {name}: ${guild_balance:,}')
+        sum = sum + guild_balance
+
+        if guild_balance < 0:
+            lended = lended - guild_balance
+        else:
+            dues = dues + guild_balance
+        print(name)
+    
+    purple = discord.Color.purple()
+    response = discord.Embed(title = 'Balances :D',color=purple)
+
+    response.description = (f'{message} \n --------------\n Dues: {dues:,} \n lended: {lended:,} \n Sum: {sum:,}')
+
+    #await interaction.followup.send(embed=response)
+    #use if it is taking to long to process
+    await interaction.response.send_message(embed=response, ephemeral=True, delete_after=120)
+
+
+
 
 
 
@@ -324,7 +389,7 @@ async def register(interaction: discord.Interaction, member:Optional[discord.Mem
             print(str(member.id))
             await interaction.response.send_message(f'{member.display_name} has been registered',delete_after=60, ephemeral=True)
 
-    #registers a member to the database
+
 
 
 
@@ -334,7 +399,7 @@ async def show_join_date(interaction: discord.Interaction, member: discord.Membe
     """shows join date of a member"""
     await interaction.response.send_message(f'{member} joined at {discord.utils.format_dt(member.joined_at)}',delete_after=60, ephemeral=True)
 
-#allows moderators to view the date at which a member joined
+
 
 
 @client.tree.context_menu(name='Report to Moderators')
@@ -344,6 +409,7 @@ async def report_message(interaction: discord.Interaction, message: discord.Mess
         f'Thanks for reporting this message by {message.author.mention} to our moderators.', ephemeral=True
     )
 
+    # Handle report by sending it into a log channel
     log_channel = interaction.guild.get_channel(LOG_CHANNEL)
 
     embed = discord.Embed(title='Reported Message')
@@ -357,8 +423,6 @@ async def report_message(interaction: discord.Interaction, message: discord.Mess
     url_view.add_item(discord.ui.Button(label='Go to Message', style=discord.ButtonStyle.url, url=message.jump_url))
 
     await log_channel.send(embed=embed, view=url_view)
-
-    #allows a member to report a message 
 
 
 
@@ -376,13 +440,11 @@ async def view_guild_balance(interaction: discord.Interaction, member: discord.M
 
     embed = discord.Embed(title='Guild Silver Balance')
             
-    embed.description = (f'Total: {balance}')
+    embed.description = (f'Total: {balance:,}')
     embed.set_author(name=member.display_name, icon_url=member.display_avatar.url)
     embed.timestamp = interaction.created_at
 
     await interaction.response.send_message(embed=embed, ephemeral=True, delete_after=120)
-
-    #allows members to view their own and others guild balances
 
 
 
